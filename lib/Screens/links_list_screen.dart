@@ -3,7 +3,6 @@ import 'package:mysaiph/models/link.dart';
 import 'package:mysaiph/services/link_service.dart';
 import 'package:mysaiph/Screens/link_item.dart';
 
-
 class LinksListScreen extends StatefulWidget {
   const LinksListScreen({Key? key}) : super(key: key);
 
@@ -13,37 +12,27 @@ class LinksListScreen extends StatefulWidget {
 
 class _LinksListScreenState extends State<LinksListScreen> {
   final LinkService linkService = LinkService();
-  late List<Link> linkInputs;
   late bool isLoading;
   late bool isError;
 
   @override
   void initState() {
     super.initState();
-    linkInputs = [];
     isLoading = true;
     isError = false;
-    fetchLinks();
   }
 
-  Future<void> fetchLinks() async {
-    try {
-      final links = await linkService.fetchLinks().first;
-      setState(() {
-        linkInputs = links;
-        isLoading = false;
-        isError = false;
-      });
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-        isError = true;
-      });
-    }
-  }
+  // Remove the fetchLinks() method that was using .first. You can now directly listen to the stream in the build method.
 
   Future<void> _refreshLinks() async {
-    await fetchLinks();
+    setState(() {
+      isLoading = true;  // Set loading to true when refreshing
+    });
+    // If you need to refresh manually, you can use this. Otherwise, the stream already handles real-time updates.
+    await Future.delayed(Duration(seconds: 1));
+    setState(() {
+      isLoading = false;  // Stop the loading indicator
+    });
   }
 
   @override
@@ -60,32 +49,45 @@ class _LinksListScreenState extends State<LinksListScreen> {
       body: RefreshIndicator(
         color: const Color(0xff273085),
         onRefresh: _refreshLinks,
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xfff5f5f5)))
-            : isError
-            ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Une erreur s\'est produite'),
-              IconButton(
-                icon: Icon(Icons.refresh),
-                onPressed: fetchLinks,
-              ),
-            ],
-          ),
-        )
-            : (linkInputs.isEmpty
-            ? Center(child: Text('Aucun lien n\'a été ajouté'))
-            : ListView.builder(
-          itemCount: linkInputs.length,
-          itemBuilder: (context, index) {
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 3,horizontal: 10),
-              child: LinkItem(link: linkInputs[index]),
+        child: StreamBuilder<List<Link>>(
+          stream: linkService.fetchLinks(), // Listen to the stream here
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xfff5f5f5)));
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Une erreur s\'est produite'),
+                    IconButton(
+                      icon: Icon(Icons.refresh),
+                      onPressed: _refreshLinks, // Retry fetching the data
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('Aucun lien n\'a été ajouté'));
+            }
+
+            // Now that we're listening to the stream, this will automatically rebuild when links change.
+            final linkInputs = snapshot.data!;
+            return ListView.builder(
+              itemCount: linkInputs.length,
+              itemBuilder: (context, index) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
+                  child: LinkItem(link: linkInputs[index]),
+                );
+              },
             );
           },
-        )),
+        ),
       ),
     );
   }

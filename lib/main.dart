@@ -1,3 +1,4 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -23,6 +24,7 @@ void main() async {
     const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
   );
 
+
   WidgetsFlutterBinding.ensureInitialized();
   await injectDependencies();
   await LocalNotificationService().setup();
@@ -44,6 +46,8 @@ void main() async {
           measurementId: "G-1Z9EGRPDCD"
       ),
     );
+    FirebaseAppCheck firebaseAppCheck = FirebaseAppCheck.instance;
+    await firebaseAppCheck.activate();
   } else {
     await Firebase.initializeApp();
   }

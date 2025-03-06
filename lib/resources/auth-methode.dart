@@ -85,85 +85,76 @@ class AuthMethodes {
     return res;
   }
   Future<String> updateUser({
+    required String currentPassword,
     required String pseudo,
-    required String Profession,
+    required String newEmail,
     required String phoneNumber,
     required String pharmacy,
     required String Datedenaissance,
-    required Uint8List photoUrl,
-    required String Verified,
+    Uint8List? photoUrl,
+    required String newPassword,
+    required String Profession,
     required String CodeClient,
-  // New email parameter
-    String? newPassword, // New password parameter
+    required String Verified,
   }) async {
     try {
-      User? currentUser = _auth.currentUser;
+      User? user = _auth.currentUser;
 
-      if (currentUser != null) {
-        // Step 1: Upload the photo to Firebase Storage if it's provided
-        String? photoUrlString;
-        if (photoUrl.isNotEmpty) {
-          photoUrlString = await _uploadPhoto(photoUrl, currentUser.uid);
-        }
+      // Reauthenticate user
+      AuthCredential credential = EmailAuthProvider.credential(
+          email: user!.email!,
+          password: currentPassword
+      );
 
-        // Step 2: Handle email update
+      await user.reauthenticateWithCredential(credential);
 
+      // Update email without verification check
+      await user.updateEmail(newEmail);
 
-        // Step 3: Handle password update if provided
-        if (newPassword != null && newPassword.isNotEmpty) {
-          try {
-            await currentUser.updatePassword(newPassword);
-          } catch (e) {
-            print("Error updating password: $e");
-            return "Failed to update password";
-          }
-        }
-
-        // Step 4: Create a map with updated user data, including the photo URL
-        Map<String, dynamic> updatedUserData = {
-          'pseudo': pseudo,
-          'Profession': Profession,
-          'phoneNumber': phoneNumber,
-          'pharmacy': pharmacy,
-          'Datedenaissance': Datedenaissance,
-          'Verified': Verified,
-          'CodeClient': CodeClient,
-          'photoUrl': photoUrlString ?? currentUser.photoURL, // Use the old photo URL if not updated
-         // Update email in Firestore
-        };
-
-        // Step 5: Update Firestore with new user data
-        try {
-          await _firestore.collection('users').doc(currentUser.uid).update(updatedUserData);
-        } catch (e) {
-          print("Error updating Firestore: $e");
-          return "Failed to update Firestore";
-        }
-
-        return "success";
-      } else {
-        return "User not logged in";
+      // Update password if needed
+      if (newPassword.isNotEmpty) {
+        await user.updatePassword(newPassword);
       }
+
+      // Update Firestore data
+      Map<String, dynamic> updateData = {
+        'email': newEmail,
+        'pseudo': pseudo,
+        'phoneNumber': phoneNumber,
+        'pharmacy': pharmacy,
+        'Datedenaissance': Datedenaissance,
+        'Profession': Profession,
+        'CodeClient': CodeClient,
+      };
+
+      if (photoUrl != null) {
+        String photoURL = await StorageMethods()
+            .uploadImageToStorage('profilePics', photoUrl, false);
+        updateData['photoUrl'] = photoURL;
+      }
+
+      await _firestore.collection('users').doc(user.uid).update(updateData);
+
+      return "success";
     } catch (err) {
-      print("Error during user update: $err");
-      return "Some error occurred";
+      return err.toString();
     }
   }
 
-
-// Helper function to upload the photo to Firebase Storage
   Future<String> _uploadPhoto(Uint8List photo, String userId) async {
     try {
-      String filePath = "users/$userId/profile_photo.png";
-      Reference storageRef = FirebaseStorage.instance.ref().child(filePath);
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('users/$userId/profile_${DateTime.now().millisecondsSinceEpoch}.png');
       UploadTask uploadTask = storageRef.putData(photo);
       TaskSnapshot snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      print("Error uploading photo: $e");
+      print("Photo upload error: $e");
       throw Exception("Failed to upload photo");
     }
   }
+
 
 
 

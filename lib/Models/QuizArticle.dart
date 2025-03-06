@@ -14,7 +14,7 @@ class Article {
   final String question;
   final List<String> possibleAnswers;
   final String? correctAnswer;
-
+  final int points; // New points field
 
   const Article(
       {required this.description,
@@ -30,26 +30,27 @@ class Article {
         this.correctAnswer,
         this.Title,
         this.Hint,
+        required this.points, // Add points to the constructor
       });
 
   static Article fromSnap(DocumentSnapshot snap) {
-
     var snapshot = snap.data() as Map<String, dynamic>;
 
     return Article(
-        description: snapshot["description"],
-        uid: snapshot["uid"],
-        likes: snapshot["likes"],
-        articleId: snapshot["articleId"],
-        datePublished: snapshot["datePublished"],
-        pseudo: snapshot["pseudo"],
-        Title: snapshot["Title"],
+      description: snapshot["description"],
+      uid: snapshot["uid"],
+      likes: snapshot["likes"],
+      articleId: snapshot["articleId"],
+      datePublished: snapshot["datePublished"],
+      pseudo: snapshot["pseudo"],
+      Title: snapshot["Title"],
       Hint: snapshot["Hint"],
-        postUrl: snapshot['postUrl'],
-        profImage: snapshot['profImage'],
+      postUrl: snapshot['postUrl'],
+      profImage: snapshot['profImage'],
       question: snapshot["question"] as String? ?? "",
       possibleAnswers: (snapshot["possibleAnswers"] as List<String>?) ?? [],
       correctAnswer: snapshot["correctAnswer"] as String? ?? "",
+      points: snapshot["points"] ?? 0, // Handle the new field here
     );
   }
 
@@ -65,8 +66,8 @@ class Article {
     "question": question,
     "possibleAnswers": possibleAnswers,
     "correctAnswer": correctAnswer,
-    "Title":Title,
-    "Hint":Hint,
-
+    "Title": Title,
+    "Hint": Hint,
+    "points": points, // Include points in the JSON output
   };
 }

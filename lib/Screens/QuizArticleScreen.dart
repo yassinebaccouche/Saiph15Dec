@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/animation.dart';
+import 'package:provider/provider.dart';
+import 'package:mysaiph/resources/firestore_methods.dart';
+import 'package:mysaiph/providers/user_provider.dart'; // Ajuster le chemin si nécessaire
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../Models/user.dart';
 
 class ArticleQuizScreen extends StatefulWidget {
   final String question;
   final List<String> possibleAnswers;
   final String? correctAnswer;
+  final String articleId;
+  final int points;
 
   const ArticleQuizScreen({
     Key? key,
     required this.question,
     required this.possibleAnswers,
     this.correctAnswer,
+    required this.articleId,
+    required this.points,
   }) : super(key: key);
 
   @override
@@ -18,13 +28,18 @@ class ArticleQuizScreen extends StatefulWidget {
 }
 
 class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
-  final _animationDuration = const Duration(milliseconds: 500);
+  final Duration _animationDuration = const Duration(milliseconds: 500);
   String? _selectedAnswer;
   bool _isAnswerCorrect = false;
   bool _isAnswerSubmitted = false;
 
+  final FireStoreMethodes _fireStoreMethodes = FireStoreMethodes();
+
   @override
   Widget build(BuildContext context) {
+    final UserProvider userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String uid = userProvider.getUser.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Article Quiz"),
@@ -43,9 +58,7 @@ class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Question text
               Text(
                 widget.question,
                 style: const TextStyle(
@@ -57,24 +70,51 @@ class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
               ),
               const SizedBox(height: 40),
 
-              // Display possible answers
               for (var answer in widget.possibleAnswers)
                 AnimatedOpacity(
                   opacity: _isAnswerSubmitted ? 0.7 : 1.0,
                   duration: _animationDuration,
                   child: GestureDetector(
-                    onTap: () {
+                    onTap: () async {
                       if (!_isAnswerSubmitted) {
-                        setState(() {
-                          _selectedAnswer = answer;
-                          _isAnswerSubmitted = true;
+                        var responses = await _fireStoreMethodes
+                            .getArticleResponsesByArticle(widget.articleId);
 
-                          if (_selectedAnswer == widget.correctAnswer) {
-                            _isAnswerCorrect = true;
-                          } else {
-                            _isAnswerCorrect = false;
+                        bool hasResponded = responses.any((response) => response.uid == uid);
+
+                        if (hasResponded) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Vous avez déjà répondu à ce quiz!"),
+                            ),
+                          );
+                        } else {
+                          setState(() {
+                            _selectedAnswer = answer;
+                            _isAnswerSubmitted = true;
+                            _isAnswerCorrect = (answer == widget.correctAnswer);
+                          });
+
+                          await _fireStoreMethodes.createArticleResponse(uid, widget.articleId);
+
+                          if (_isAnswerCorrect) {
+                            int newScore = widget.points;
+                            User user = userProvider.getUser;
+                            int currentScore = int.parse(user.FullScore);
+                            int updatedScore = currentScore + newScore;
+                            user.FullScore = updatedScore.toString();
+
+                            FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .update(user.toJson())
+                                .then((_) {
+                              userProvider.setUser(user);
+                            }).catchError((error) {
+                              print("Erreur de mise à jour du score: $error");
+                            });
                           }
-                        });
+                        }
                       }
                     },
                     child: Card(
@@ -83,16 +123,13 @@ class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       color: _isAnswerSubmitted && _selectedAnswer == answer
-                          ? (_isAnswerCorrect
-                          ? Colors.green.shade300
-                          : Colors.red.shade300)
+                          ? (_isAnswerCorrect ? Colors.green.shade300 : Colors.red.shade300)
                           : Colors.white,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 15.0, horizontal: 25.0),
+                        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 25.0),
                         child: Text(
                           answer,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
@@ -105,20 +142,49 @@ class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
                 ),
               const SizedBox(height: 30),
 
-              // Show feedback after the answer is selected
               if (_isAnswerSubmitted)
-                Text(
-                  _isAnswerCorrect ? "Correct!" : "Wrong answer!",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: _isAnswerCorrect ? Colors.green : Colors.red,
-                  ),
+                Column(
+                  children: [
+                    Text(
+                      _isAnswerCorrect ? "Correct!" : "Mauvaise réponse!",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: _isAnswerCorrect ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    if (!_isAnswerCorrect) _correctAnswerWidget(),
+                  ],
                 ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _correctAnswerWidget() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        const Text(
+          "La bonne réponse était :",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          widget.correctAnswer ?? "Aucune réponse correcte définie",
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
+        ),
+      ],
     );
   }
 }

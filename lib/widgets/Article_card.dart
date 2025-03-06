@@ -139,7 +139,7 @@ class _ArticleCardState extends State<ArticleCard> {
 
                 const SizedBox(height: 8),
                 Text(
-             '${widget.snap['question']}?',
+             '${widget.snap['Title']}?',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

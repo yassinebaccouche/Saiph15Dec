@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mysaiph/Models/Gift.dart';
 import 'package:mysaiph/resources/storage_methods.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +9,9 @@ import 'package:uuid/uuid.dart';
 
 import 'package:mysaiph/Models/post.dart';
 import 'package:mysaiph/Models/Notif.dart';
+
+import '../Models/ArticleReclamation.dart';
+import '../Models/NotifReclamation.dart';
 
 class FireStoreMethodes {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -328,11 +332,152 @@ class FireStoreMethodes {
       return err.toString();
     }
   }
+  // Create a new article response using uid, articleId and current response time.
+  Future<String> createArticleResponse(String uid, String articleId) async {
+    String res = "Some error occurred";
+    try {
+      String responseId = const Uuid().v1();
+      ArticleReponse articleResponse = ArticleReponse(
+        uid: uid,
+        articleId: articleId,
+        dateResponse: DateTime.now(),
+      );
+      await _firestore
+          .collection('articleResponses')
+          .doc(responseId)
+          .set(articleResponse.toJson());
+      res = "success";
+    } catch (err) {
+      res = err.toString();
+    }
+    return res;
+  }
+
+  // Retrieve all responses for a specific article.
+  Future<List<ArticleReponse>> getArticleResponsesByArticle(String articleId) async {
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('articleResponses')
+          .where('articleId', isEqualTo: articleId)
+          .get();
+
+      List<ArticleReponse> responses =
+      querySnapshot.docs.map((doc) => ArticleReponse.fromSnap(doc)).toList();
+
+      print("Nombre de réponses récupérées pour l'article $articleId : ${responses.length}");
+      return responses;
+    } catch (err) {
+      if (kDebugMode) print("Erreur Firestore: $err");
+      return [];
+    }
+  }
+
+  /// Vérifier si un utilisateur a déjà répondu à un article
+  Future<bool> hasUserResponded(String userId, String articleId) async {
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('articleResponses')
+          .where('articleId', isEqualTo: articleId)
+          .where('uid', isEqualTo: userId)
+          .get();
+
+      bool hasResponded = querySnapshot.docs.isNotEmpty;
+      print("L'utilisateur $userId a-t-il déjà répondu à l'article $articleId ? $hasResponded");
+
+      return hasResponded;
+    } catch (err) {
+      if (kDebugMode) print("Erreur Firestore: $err");
+      return false;
+    }
+  }
+  // Optionally, update an article response. (For example, if you later want to change the response time)
+  Future<String> updateArticleResponse(String responseId, DateTime newDateResponse) async {
+    String res = "Some error occurred";
+    try {
+      await _firestore.collection('articleResponses').doc(responseId).update({
+        'dateResponse': newDateResponse,
+      });
+      res = 'success';
+    } catch (err) {
+      res = err.toString();
+    }
+    return res;
+  }
+
+  // Delete an article response by its document id.
+  Future<String> deleteArticleResponse(String responseId) async {
+    String res = "Some error occurred";
+    try {
+      await _firestore.collection('articleResponses').doc(responseId).delete();
+      res = 'success';
+    } catch (err) {
+      res = err.toString();
+    }
+    return res;
+  }
+  Future<List<NotificationReclamationModel>> getNotifResponsesByNotif(String notifId) async {
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('notifResponse')
+          .where('notifId', isEqualTo: notifId)
+          .get();
+
+      List<NotificationReclamationModel> responses =
+      querySnapshot.docs.map((doc) => NotificationReclamationModel.fromSnap(doc)).toList();
+
+      print("Nombre de réponses récupérées pour la notification $notifId : ${responses.length}");
+      return responses;
+    } catch (err) {
+      if (kDebugMode) {
+        print("Erreur Firestore: $err");
+      }
+      return [];
+    }
+  }
 
 
+  Future<String> createNotifResponse(String uid, String notifId) async {
+    String res = "Some error occurred";
+    try {
+      String responseId = const Uuid().v1();
+      NotificationReclamationModel notifResponse = NotificationReclamationModel(
+        uid: uid,
+        notifId: notifId,
+        dateResponse: DateTime.now(),
+      );
+      await _firestore
+          .collection('notifResponse')
+          .doc(responseId)
+          .set(notifResponse.toJson());
+      res = "success";
+    } catch (err) {
+      res = err.toString();
+    }
+    return res;
+  }
+  /// Vérifier si un utilisateur a déjà répondu à un article
+  Future<bool> hasUserRespondedNotif(String userId, String notificationId) async {
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('notifResponse')
+          .where('notifId', isEqualTo: notificationId)
+          .where('uid', isEqualTo: userId)
+          .get();
 
+      bool hasResponded = querySnapshot.docs.isNotEmpty;
+      print("L'utilisateur $userId a-t-il déjà répondu à la notification $notificationId ? $hasResponded");
 
-
+      return hasResponded;
+    } catch (err) {
+      if (kDebugMode) print("Erreur Firestore: $err");
+      return false;
+    }
+  }
 }
+
+
+
+
+
 
 

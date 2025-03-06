@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mysaiph/Screens/UpdateUserScreen.dart';
+import 'package:mysaiph/Screens/test.dart';
 import 'package:mysaiph/providers/user_provider.dart';
 import 'package:mysaiph/resources/firestore_methods.dart';
 import 'package:mysaiph/utils/utils.dart';
@@ -196,7 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   SizedBox(),
                                   () => Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (context) => UpdateScreen(),
+                                          builder: (context) => UpdateEmailScreen(),
                                         ),
                                       ))
                               : isFollowing

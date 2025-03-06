@@ -14,6 +14,7 @@ import '../widgets/profile_container.dart';
 class UserFormulaireTwo extends StatefulWidget {
   final String pseudo;
   final String date;
+  final String email;
   final String tel;
   final String mdp;
   final Uint8List? file;
@@ -22,6 +23,7 @@ class UserFormulaireTwo extends StatefulWidget {
     Key? key,
     required this.pseudo,
     required this.date,
+    required this.email,
     required this.tel,
     required this.mdp,
     this.file,
@@ -70,6 +72,7 @@ class _UserFormulaireTwoState extends State<UserFormulaireTwo> {
 
     String result = await AuthMethodes().updateUser(
       pseudo: widget.pseudo,
+      newEmail: widget.email,
       CodeClient: selectedCRM,
       phoneNumber: widget.tel,
       pharmacy: selectedPharmacy,
@@ -78,7 +81,7 @@ class _UserFormulaireTwoState extends State<UserFormulaireTwo> {
       Verified: '1',
 
       newPassword: widget.mdp,
-      Profession: selectedProfession,
+      Profession: selectedProfession, currentPassword: '',
     );
 
     if (result == "success") {

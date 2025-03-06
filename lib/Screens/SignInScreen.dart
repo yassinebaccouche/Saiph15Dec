@@ -135,7 +135,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       borderRadius: BorderRadius.circular(40),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(40.0),
+                      padding: const EdgeInsets.all(25.0),
                       child: SingleChildScrollView(
                         child: Form(
                           key: _formKey,
@@ -146,7 +146,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               TextFormField(
                                 controller: _emailController,
                                 decoration: InputDecoration(
-                                  hintText: 'Utilisateur',
+                                  hintText: ' UserEmail',
                                   hintStyle: TextStyle(color: Colors.grey),
                                   border: UnderlineInputBorder(
                                     borderSide: BorderSide(color: Colors.grey),
