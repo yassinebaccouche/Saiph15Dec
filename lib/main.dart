@@ -1,13 +1,13 @@
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mysaiph/Screens/SignInScreen.dart';
-
 import 'package:mysaiph/providers/user_provider.dart';
 import 'package:mysaiph/services/notifservice.dart';
 import 'package:mysaiph/utils/games_utils/inject_dependencies.dart';
@@ -16,45 +16,67 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:mysaiph/Responsive/mobile_screen_layout.dart';
 import 'package:mysaiph/Responsive/responsive_layout_screen.dart';
 import 'package:mysaiph/Responsive/web_screen_layout.dart';
-import 'package:mysaiph/Models/user.dart' as CustomAppUser; // Renamed import
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:mysaiph/Models/user.dart' as CustomAppUser;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Background message handler
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+}
 void main() async {
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // Enable Firebase App Check
+  if (kIsWeb) {
+    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+  }
+
+  // Initialize Firebase Cloud Messaging (FCM)
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // Subscribe to topic
+  await messaging.subscribeToTopic("sample");
+
+  // Retrieve FCM Token with error handling
+  try {
+    final String? fcmToken = await messaging.getToken();
+    if (fcmToken != null) {
+      print('FCM Token: $fcmToken');
+    } else {
+      print('Failed to retrieve FCM Token');
+    }
+  } catch (e) {
+    print('Error retrieving FCM Token: $e');
+  }
+
+  // Request notification permissions
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
   );
 
+  print("User granted permissions: ${settings.authorizationStatus}");
 
-  WidgetsFlutterBinding.ensureInitialized();
-  await injectDependencies();
+  // Handle background messages
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Initialize Local Notifications
   await LocalNotificationService().setup();
-  await Permission.notification.isDenied.then((value) {
-    if (value) {
-      Permission.notification.request();
-    }
-  });
 
-  if (kIsWeb) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-          apiKey: "AIzaSyDd73LUWiKhfIm9hoS7OtqqfrsIdpGf3-I",
-          authDomain: "mysaiph-26b1c.firebaseapp.com",
-          projectId: "mysaiph-26b1c",
-          storageBucket: "mysaiph-26b1c.appspot.com",
-          messagingSenderId: "154959907692",
-          appId: "1:154959907692:web:519c2023e47834f7518149",
-          measurementId: "G-1Z9EGRPDCD"
-      ),
-    );
-    FirebaseAppCheck firebaseAppCheck = FirebaseAppCheck.instance;
-    await firebaseAppCheck.activate();
-  } else {
-    await Firebase.initializeApp();
+  // Request notification permissions using permission_handler
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
   }
-  await FirebaseAuth.instance.currentUser;
+
+  // Ensure dependencies are injected
+  await injectDependencies();
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -78,7 +100,6 @@ class MyApp extends StatelessWidget {
               if (snapshot.hasData) {
                 User? user = FirebaseAuth.instance.currentUser;
                 if (user != null) {
-                  // Retrieve user data from Firestore based on user's UID
                   return FutureBuilder<DocumentSnapshot>(
                     future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
                     builder: (context, snapshot) {
@@ -86,7 +107,6 @@ class MyApp extends StatelessWidget {
                         if (snapshot.hasData && snapshot.data != null) {
                           final data = snapshot.data!.data() as Map<String, dynamic>?;
                           if (data != null) {
-                            // Create a CustomAppUser.User object from Firestore data
                             CustomAppUser.User? userData = CustomAppUser.User.fromSnap(snapshot.data!);
                             if (userData != null && userData.Verified == '1') {
                               return ResponsiveLayout(

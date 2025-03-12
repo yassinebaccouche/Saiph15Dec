@@ -130,17 +130,7 @@ class SettingsScreen extends StatelessWidget {
                         ));
                       },
                     ),
-                    SizedBox(height: 10),
-                    ProfileButton(
-                      screenWidth,
-                      "Amis",
-                      const SizedBox(),
-                          () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (context) => SearchScreen(),
-                        ));
-                      },
-                    ),
+
                     SizedBox(height: 10),
                     ProfileButton(
                       screenWidth,

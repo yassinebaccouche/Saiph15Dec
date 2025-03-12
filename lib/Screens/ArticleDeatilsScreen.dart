@@ -194,7 +194,8 @@ class _ArticleDetailsScreenState extends State<ArticleDetailsScreen> {
                                   question: widget.articleData['question'],
                                   points:widget.articleData['points'],
                                   possibleAnswers: List<String>.from(widget.articleData['possibleAnswers']),
-                                  correctAnswer: widget.articleData['correctAnswer'],
+                                  correctAnswer: widget.articleData['correctAnswer'], quizBackgroundUrl: widget.articleData['quizBackgroundUrl'],
+
                                 ),
                               ),
                             );

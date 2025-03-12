@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/animation.dart';
 import 'package:provider/provider.dart';
 import 'package:mysaiph/resources/firestore_methods.dart';
-import 'package:mysaiph/providers/user_provider.dart'; // Ajuster le chemin si nécessaire
+import 'package:mysaiph/providers/user_provider.dart'; // Adjust path if necessary
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../Models/user.dart';
 
 class ArticleQuizScreen extends StatefulWidget {
@@ -13,6 +12,7 @@ class ArticleQuizScreen extends StatefulWidget {
   final String? correctAnswer;
   final String articleId;
   final int points;
+  final String quizBackgroundUrl; // New field for background image
 
   const ArticleQuizScreen({
     Key? key,
@@ -21,6 +21,7 @@ class ArticleQuizScreen extends StatefulWidget {
     this.correctAnswer,
     required this.articleId,
     required this.points,
+    required this.quizBackgroundUrl,
   }) : super(key: key);
 
   @override
@@ -48,10 +49,9 @@ class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade50, Colors.blueAccent.shade100],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+          image: DecorationImage(
+            image: NetworkImage(widget.quizBackgroundUrl), // Fetch from Firestore
+            fit: BoxFit.contain, // Cover the entire screen
           ),
         ),
         child: Padding(
@@ -64,102 +64,107 @@ class _ArticleQuizScreenState extends State<ArticleQuizScreen> {
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Colors.white, // Ensure text is visible
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
-
               for (var answer in widget.possibleAnswers)
-                AnimatedOpacity(
-                  opacity: _isAnswerSubmitted ? 0.7 : 1.0,
-                  duration: _animationDuration,
-                  child: GestureDetector(
-                    onTap: () async {
-                      if (!_isAnswerSubmitted) {
-                        var responses = await _fireStoreMethodes
-                            .getArticleResponsesByArticle(widget.articleId);
-
-                        bool hasResponded = responses.any((response) => response.uid == uid);
-
-                        if (hasResponded) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Vous avez déjà répondu à ce quiz!"),
-                            ),
-                          );
-                        } else {
-                          setState(() {
-                            _selectedAnswer = answer;
-                            _isAnswerSubmitted = true;
-                            _isAnswerCorrect = (answer == widget.correctAnswer);
-                          });
-
-                          await _fireStoreMethodes.createArticleResponse(uid, widget.articleId);
-
-                          if (_isAnswerCorrect) {
-                            int newScore = widget.points;
-                            User user = userProvider.getUser;
-                            int currentScore = int.parse(user.FullScore);
-                            int updatedScore = currentScore + newScore;
-                            user.FullScore = updatedScore.toString();
-
-                            FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(user.uid)
-                                .update(user.toJson())
-                                .then((_) {
-                              userProvider.setUser(user);
-                            }).catchError((error) {
-                              print("Erreur de mise à jour du score: $error");
-                            });
-                          }
-                        }
-                      }
-                    },
-                    child: Card(
-                      elevation: 5,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      color: _isAnswerSubmitted && _selectedAnswer == answer
-                          ? (_isAnswerCorrect ? Colors.green.shade300 : Colors.red.shade300)
-                          : Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 25.0),
-                        child: Text(
-                          answer,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                _buildAnswerCard(answer, userProvider), // Pass userProvider here
               const SizedBox(height: 30),
-
-              if (_isAnswerSubmitted)
-                Column(
-                  children: [
-                    Text(
-                      _isAnswerCorrect ? "Correct!" : "Mauvaise réponse!",
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: _isAnswerCorrect ? Colors.green : Colors.red,
-                      ),
-                    ),
-                    if (!_isAnswerCorrect) _correctAnswerWidget(),
-                  ],
-                ),
+              if (_isAnswerSubmitted) _buildResultMessage(),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAnswerCard(String answer, UserProvider userProvider) {
+    return AnimatedOpacity(
+      opacity: _isAnswerSubmitted ? 0.7 : 1.0,
+      duration: _animationDuration,
+      child: GestureDetector(
+        onTap: () async {
+          if (!_isAnswerSubmitted) {
+            var responses = await _fireStoreMethodes
+                .getArticleResponsesByArticle(widget.articleId);
+
+            bool hasResponded = responses.any((response) => response.uid == userProvider.getUser.uid);
+
+            if (hasResponded) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Vous avez déjà répondu à ce quiz!"),
+                ),
+              );
+            } else {
+              setState(() {
+                _selectedAnswer = answer;
+                _isAnswerSubmitted = true;
+                _isAnswerCorrect = (answer == widget.correctAnswer);
+              });
+
+              await _fireStoreMethodes.createArticleResponse(userProvider.getUser.uid, widget.articleId);
+
+              if (_isAnswerCorrect) {
+                int newScore = widget.points;
+                User user = userProvider.getUser;
+                int currentScore = int.parse(user.FullScore);
+                int updatedScore = currentScore + newScore;
+                user.FullScore = updatedScore.toString();
+
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .update(user.toJson())
+                    .then((_) {
+                  userProvider.setUser(user);
+                }).catchError((error) {
+                  print("Erreur de mise à jour du score: $error");
+                });
+              }
+            }
+          }
+        },
+        child: Card(
+          elevation: 5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          color: _isAnswerSubmitted && _selectedAnswer == answer
+              ? (_isAnswerCorrect ? Colors.green.shade300 : Colors.red.shade300)
+              : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 25.0),
+            child: Text(
+              answer,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResultMessage() {
+    return Column(
+      children: [
+        Text(
+          _isAnswerCorrect ? "Correct!" : "Mauvaise réponse!",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: _isAnswerCorrect ? Colors.green : Colors.red,
+          ),
+        ),
+        if (!_isAnswerCorrect) _correctAnswerWidget(),
+      ],
     );
   }
 

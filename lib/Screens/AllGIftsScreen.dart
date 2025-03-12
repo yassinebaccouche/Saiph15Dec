@@ -66,7 +66,10 @@ class _AllGiftsScreenState extends State<AllGiftsScreen> {
     _userFullScore = int.parse(userProvider.getUser.FullScore);
   }
 
-  void _showDialog(String giftCode, String userId, GiftModel gift) {
+  void _showDialog(String giftCode, GiftModel gift) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final String userId = userProvider.getUser.uid; // Fetch user ID from the provider
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -215,7 +218,7 @@ class _AllGiftsScreenState extends State<AllGiftsScreen> {
                               GestureDetector(
                                 onTap: () {
                                   _showDialog(
-                                      '${gift.code}', userProvider.getUser.uid, gift
+                                      '${gift.code}', gift
                                   );
                                 },
                                 child: Container(

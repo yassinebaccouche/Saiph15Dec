@@ -14,24 +14,26 @@ class Article {
   final String question;
   final List<String> possibleAnswers;
   final String? correctAnswer;
-  final int points; // New points field
+  final int points;
+  final String quizBackground; // New field for Quiz Background image
 
-  const Article(
-      {required this.description,
-        required this.uid,
-        required this.pseudo,
-        required this.likes,
-        required this.articleId,
-        required this.datePublished,
-        required this.postUrl,
-        required this.profImage,
-        required this.question,
-        required this.possibleAnswers,
-        this.correctAnswer,
-        this.Title,
-        this.Hint,
-        required this.points, // Add points to the constructor
-      });
+  const Article({
+    required this.description,
+    required this.uid,
+    required this.pseudo,
+    required this.likes,
+    required this.articleId,
+    required this.datePublished,
+    required this.postUrl,
+    required this.profImage,
+    required this.question,
+    required this.possibleAnswers,
+    this.correctAnswer,
+    this.Title,
+    this.Hint,
+    required this.points,
+    required this.quizBackground, // Add this field
+  });
 
   static Article fromSnap(DocumentSnapshot snap) {
     var snapshot = snap.data() as Map<String, dynamic>;
@@ -48,9 +50,10 @@ class Article {
       postUrl: snapshot['postUrl'],
       profImage: snapshot['profImage'],
       question: snapshot["question"] as String? ?? "",
-      possibleAnswers: (snapshot["possibleAnswers"] as List<String>?) ?? [],
+      possibleAnswers: (snapshot["possibleAnswers"] as List<dynamic>?)?.cast<String>() ?? [],
       correctAnswer: snapshot["correctAnswer"] as String? ?? "",
-      points: snapshot["points"] ?? 0, // Handle the new field here
+      points: snapshot["points"] ?? 0,
+      quizBackground: snapshot["quizBackground"] ?? "", // Handle the new field
     );
   }
 
@@ -68,6 +71,7 @@ class Article {
     "correctAnswer": correctAnswer,
     "Title": Title,
     "Hint": Hint,
-    "points": points, // Include points in the JSON output
+    "points": points,
+    "quizBackground": quizBackground, // Include the new field in JSON
   };
 }

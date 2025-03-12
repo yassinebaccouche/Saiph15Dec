@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UpdateEmailScreen extends StatefulWidget {
   @override
@@ -42,6 +43,11 @@ class _UpdateEmailScreenState extends State<UpdateEmailScreen> {
       // Send verification email to new address
       await user.verifyBeforeUpdateEmail(_newEmailController.text.trim());
 
+      // Update email in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'email': _newEmailController.text.trim(),
+      });
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -68,6 +74,10 @@ class _UpdateEmailScreenState extends State<UpdateEmailScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update email in Firestore: $e')),
       );
     } finally {
       setState(() => _isLoading = false);
