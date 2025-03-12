@@ -16,6 +16,7 @@ import '../Models/NotifReclamation.dart';
 class FireStoreMethodes {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+
   Future<String> uploadPost(String description, Uint8List file, String uid,
       String pseudo, String profImage) async {
     // asking uid here because we dont want to make extra calls to firebase auth when we can just get from our state management
@@ -415,19 +416,30 @@ class FireStoreMethodes {
     }
     return res;
   }
-  Future<List<NotificationReclamationModel>> getNotifResponsesByNotif(String notifId) async {
+  // Get all responses for a specific notification
+
+
+  Future<List<NotificationReclamationModel>> getNotifResponsesByNotif(String NotifId) async {
     try {
+      // Query the collection 'notifResponse' for documents where the 'notifId' matches
       QuerySnapshot querySnapshot = await _firestore
           .collection('notifResponse')
-          .where('notifId', isEqualTo: notifId)
+          .where('notifId', isEqualTo: NotifId)
           .get();
 
-      List<NotificationReclamationModel> responses =
-      querySnapshot.docs.map((doc) => NotificationReclamationModel.fromSnap(doc)).toList();
+      // Map the fetched documents into NotificationReclamationModel instances
+      List<NotificationReclamationModel> responses = querySnapshot.docs
+          .map((doc) => NotificationReclamationModel.fromSnap(doc))
+          .toList();
 
-      print("Nombre de réponses récupérées pour la notification $notifId : ${responses.length}");
+      // Print out the number of responses fetched for debugging
+      if (kDebugMode) {
+        print("Nombre de réponses récupérées pour la notification $NotifId : ${responses.length}");
+      }
+
       return responses;
     } catch (err) {
+      // Handle errors by printing and returning an empty list
       if (kDebugMode) {
         print("Erreur Firestore: $err");
       }
@@ -436,15 +448,18 @@ class FireStoreMethodes {
   }
 
 
+  // Create a response for a notification
   Future<String> createNotifResponse(String uid, String notifId) async {
     String res = "Some error occurred";
     try {
-      String responseId = const Uuid().v1();
+      String responseId = const Uuid().v1(); // Generate a unique ID for the response
       NotificationReclamationModel notifResponse = NotificationReclamationModel(
         uid: uid,
         notifId: notifId,
         dateResponse: DateTime.now(),
       );
+
+      // Create a new document in Firestore for the response
       await _firestore
           .collection('notifResponse')
           .doc(responseId)
@@ -455,24 +470,68 @@ class FireStoreMethodes {
     }
     return res;
   }
-  /// Vérifier si un utilisateur a déjà répondu à un article
-  Future<bool> hasUserRespondedNotif(String userId, String notificationId) async {
+  Future<List<NotificationModel>> fetchNotificationsWithoutUserResponse(String currentUserId) async {
+    List<NotificationModel> notifications = [];
+
     try {
-      QuerySnapshot querySnapshot = await _firestore
-          .collection('notifResponse')
-          .where('notifId', isEqualTo: notificationId)
-          .where('uid', isEqualTo: userId)
+      // Step 1: Fetch all notifications from the 'notifications' collection.
+      QuerySnapshot querySnapshot = await _firestore.collection('notifications').get();
+
+      // Step 2: Loop through each notification and check if the current user has already responded.
+      for (var doc in querySnapshot.docs) {
+        NotificationModel notification = NotificationModel.fromJson(doc.data() as Map<String, dynamic>);
+
+        // Step 3: Check if the current user has responded to this notification.
+        bool hasResponded = await _firestore
+            .collection('notifresponses') // Ensure you're using the correct collection name
+            .where('notifId', isEqualTo: notification.NotifId)
+            .where('userId', isEqualTo: currentUserId)
+            .get()
+            .then((querySnapshot) => querySnapshot.docs.isNotEmpty);
+
+        // Step 4: If the user has not responded, add this notification to the list.
+        if (!hasResponded) {
+          notifications.add(notification);
+        }
+      }
+
+      return notifications;
+    } catch (e) {
+      print('Error fetching notifications: $e');
+      return [];
+    }
+  }
+
+  // Check if a user has already responded to a specific notification
+  Future<bool> hasUserRespondedNotif(String userId, String notifId) async {
+    try {
+      var response = await _firestore
+          .collection('notifresponses')
+          .where('userId', isEqualTo: userId)
+          .where('notifId', isEqualTo: notifId)
           .get();
 
-      bool hasResponded = querySnapshot.docs.isNotEmpty;
-      print("L'utilisateur $userId a-t-il déjà répondu à la notification $notificationId ? $hasResponded");
-
-      return hasResponded;
-    } catch (err) {
-      if (kDebugMode) print("Erreur Firestore: $err");
+      return response.docs.isNotEmpty;  // If there's a matching response, return true
+    } catch (e) {
+      print('Error checking user response: $e');
       return false;
     }
   }
+
+  // Optionally, update a notification response (e.g., change response time)
+  Future<String> updateNotifResponse(String responseId, DateTime newDateResponse) async {
+    String res = "Some error occurred";
+    try {
+      await _firestore.collection('notifResponse').doc(responseId).update({
+        'dateResponse': newDateResponse,
+      });
+      res = 'success';
+    } catch (err) {
+      res = err.toString();
+    }
+    return res;
+  }
+
 }
 
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mysaiph/Models/Notif.dart';
+import 'package:mysaiph/Responsive/mobile_screen_layout.dart';
+import 'package:mysaiph/Screens/HomeScreen.dart';
+import 'package:mysaiph/Screens/NotificationPage.dart';
 import 'package:mysaiph/resources/firestore_methods.dart';
 import 'package:mysaiph/Models/user.dart';
 import 'package:mysaiph/providers/user_provider.dart';
@@ -105,6 +108,13 @@ class _DisplayNotificationPageState extends State<DisplayNotificationPage> {
               onPressed: () {
                 if (user != null) {
                   submitNotificationResponse(user.uid);
+                  // Attendre 3 secondes puis naviguer vers la page d'accueil
+                  Future.delayed(const Duration(seconds: 3), () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => NotificationPage()),
+                    );
+                  });
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('User not found')),
@@ -131,13 +141,26 @@ class _DisplayNotificationPageState extends State<DisplayNotificationPage> {
               ),
             ),
             if (_isAnswerSubmitted)
-              Text(
-                _isAnswerCorrect ? 'Correct!' : 'Wrong answer!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: _isAnswerCorrect ? Colors.green : Colors.red,
-                ),
+              Column(
+                children: [
+                  Text(
+                    _isAnswerCorrect ? 'Correct!' : 'Wrong answer!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: _isAnswerCorrect ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  if (!_isAnswerCorrect)
+                    Text(
+                      'Correct answer: ${widget.notification.correctAnswer}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
               ),
           ],
         ),

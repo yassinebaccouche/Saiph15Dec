@@ -5,7 +5,6 @@ import 'package:mysaiph/providers/user_provider.dart';
 import 'package:mysaiph/resources/firestore_methods.dart';
 import 'package:provider/provider.dart';
 
-// Define GiftManager outside the _AllGiftsScreenState class
 class GiftManager {
   Future<List<GiftModel>> getAllGifts() {
     return FireStoreMethodes().getAllGifts();
@@ -13,11 +12,9 @@ class GiftManager {
 
   Future<String> claimGift(String giftCard, String userFullScore, String userId) async {
     try {
-      // Fetch gift by code
       DocumentSnapshot giftSnapshot = await FirebaseFirestore.instance
           .collection('gifts').doc(giftCard).get();
 
-      // Check if the gift document exists
       if (!giftSnapshot.exists) {
         return 'Cadeau introuvable';
       }
@@ -31,25 +28,21 @@ class GiftManager {
       int pointsRequired = int.parse(giftData['points'] ?? '0');
       int userScore = int.parse(userFullScore);
 
-      // Check if the user has enough points to claim the gift
       if (userScore < pointsRequired) {
         return 'Points insuffisants pour réclamer le cadeau';
       }
 
       int newFullScore = userScore - pointsRequired;
 
-      // Update user's full score
       await FirebaseFirestore.instance.collection('users')
-          .doc(userId) // Use the actual user ID
+          .doc(userId)
           .update({'FullScore': newFullScore.toString()});
 
-      // Mark gift as used
       await FirebaseFirestore.instance.collection('gifts').doc(giftCard).update(
-          {'isUsed': true});
+          {'isUsed': true, 'uid': userId});
 
       return 'Cadeau réclamé avec succès';
     } catch (error) {
-      // Log the error for debugging purposes
       print('Error claiming gift: $error');
       return 'Erreur lors de la réclamation du cadeau. Veuillez réessayer plus tard.';
     }
@@ -64,14 +57,64 @@ class AllGiftsScreen extends StatefulWidget {
 }
 
 class _AllGiftsScreenState extends State<AllGiftsScreen> {
-  late int _userFullScore; // Variable to store user's full score
+  late int _userFullScore;
 
   @override
   void initState() {
     super.initState();
-    // Load user's full score when the screen initializes
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     _userFullScore = int.parse(userProvider.getUser.FullScore);
+  }
+
+  void _showDialog(String giftCode, String userId, GiftModel gift) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Confirmer la réclamation"),
+          content: Text("Voulez-vous réclamer ce cadeau : ${gift.card} pour ${gift.points} points ?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Annuler"),
+            ),
+            TextButton(
+              onPressed: () async {
+                GiftManager giftManager = GiftManager();
+                String result = await giftManager.claimGift(giftCode, _userFullScore.toString(), userId);
+
+                // Show the result in a SnackBar
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+
+                // Close the first dialog
+                Navigator.of(context).pop();
+
+                // If the gift is successfully claimed, show the second dialog with the gift code
+                if (result == 'Cadeau réclamé avec succès') {
+                  // Show another dialog containing the gift code
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text("Cadeau réclamé avec succès"),
+                        content: Text("Le code de votre cadeau réclamé est : $giftCode"),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text("Fermer"),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+              },
+              child: Text("Confirmer"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -129,7 +172,6 @@ class _AllGiftsScreenState extends State<AllGiftsScreen> {
                     ),
                     Text(
                       userProvider.getUser.FullScore,
-                      // Display user's full score
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 24,
@@ -166,8 +208,7 @@ class _AllGiftsScreenState extends State<AllGiftsScreen> {
                             .map((entry) {
                           int index = entry.key;
                           GiftModel gift = entry.value;
-                          Color color = index.isEven ? Colors.orange : Colors
-                              .blue; // Alternating colors
+                          Color color = index.isEven ? Colors.orange : Colors.blue;
 
                           return Column(
                             children: [
@@ -176,14 +217,12 @@ class _AllGiftsScreenState extends State<AllGiftsScreen> {
                                   _showDialog(
                                       '${gift.code}', userProvider.getUser.uid, gift
                                   );
-
-                                  },
+                                },
                                 child: Container(
                                   width: 307.17,
                                   height: 54,
                                   decoration: BoxDecoration(
                                     color: color,
-                                    // Use dynamically calculated color
                                     borderRadius: BorderRadius.circular(50),
                                   ),
                                   child: Center(
@@ -221,67 +260,4 @@ class _AllGiftsScreenState extends State<AllGiftsScreen> {
       ),
     );
   }
-  void _showDialog(String giftCode, String userId, GiftModel gift) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    if (userProvider.getUser == null ||
-        userProvider.getUser.FullScore == null) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text("Error"),
-            content: Text("User data not available."),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text("Close"),
-              ),
-            ],
-          );
-        },
-      );
-      return;
-    }
-
-    int userFullScore = int.parse(userProvider.getUser.FullScore!);
-    String claimResult = await GiftManager().claimGift(
-        giftCode, userFullScore.toString(), userId);
-
-    String message;
-    if (claimResult.startsWith('Cadeau réclamé avec succès')) {
-      // Update user's score in the provider
-      int newScore = userFullScore - int.parse(gift.points);
-      userProvider.updateUserFullScore(newScore.toString());
-
-      // Refresh the screen after claiming the gift
-      setState(() {});
-      message = 'Cadeau réclamé avec succès. Code Cadeau: $giftCode. Veuillez COPIER LE CODE AVANT DE QUITTER !';
-    } else {
-      message = claimResult;
-    }
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Claim Gift"),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text("Close"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
-
 }

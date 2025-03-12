@@ -1,11 +1,14 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mysaiph/resources/auth-methode.dart';
+import 'package:mysaiph/Screens/HomeScreen.dart';
 import 'package:mysaiph/utils/utils.dart';
-import 'package:mysaiph/Responsive/mobile_screen_layout.dart';
-import 'package:mysaiph/Responsive/responsive_layout_screen.dart';
-import 'package:mysaiph/Responsive/web_screen_layout.dart';
+import 'package:mysaiph/resources/auth-methode.dart';
+
+import '../Responsive/mobile_screen_layout.dart';
+import '../Responsive/responsive_layout_screen.dart';
+import '../Responsive/web_screen_layout.dart';
 
 class UpdateScreen extends StatefulWidget {
   const UpdateScreen({Key? key}) : super(key: key);
@@ -15,25 +18,17 @@ class UpdateScreen extends StatefulWidget {
 }
 
 class _UpdateScreenState extends State<UpdateScreen> {
-  final TextEditingController pseudoController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController dateNaissanceController = TextEditingController();
-  final TextEditingController telController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController pharmacieController = TextEditingController();
-  final TextEditingController codeClientController = TextEditingController();
-  final TextEditingController _currentPasswordController = TextEditingController();
+  TextEditingController pseudoController = TextEditingController();
+
+  TextEditingController dateNaissanceController = TextEditingController();
+  TextEditingController telController = TextEditingController();
+  TextEditingController _passwordController = TextEditingController();
+  TextEditingController pharmacieController = TextEditingController();
+  TextEditingController CodeClientController = TextEditingController();
 
   Uint8List? _image;
   bool _isLoading = false;
-  String selectedProfession = 'Profession';
-
-  List<String> professions = [
-    'Profession',
-    'Pharmacist',
-    'Doctor',
-    'Other',
-  ];
+  TextEditingController _dateController = TextEditingController();
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -44,39 +39,64 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
     if (picked != null && picked != DateTime.now()) {
       setState(() {
-        dateNaissanceController.text = picked.toLocal().toString().split(' ')[0];
+        _dateController.text = picked.toLocal().toString().split(' ')[0];
       });
     }
   }
 
+  List<String> professions = [
+    'Profession',
+    'Pharmacist',
+    'Doctor',
+    'Profession 3',
+    // Add more professions as needed
+  ];
+
+  String selectedProfession = 'Profession'; // Default selected profession
+
+  @override
+  void dispose() {
+    super.dispose();
+    _passwordController.dispose();
+    CodeClientController.dispose();
+    pseudoController.dispose();
+    pharmacieController.dispose();
+    telController.dispose();
+  }
+
   void selectImage() async {
+    // Show a dialog to choose between camera and gallery
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Select Image Source'),
+          title: Text('Select Image Source'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
+            children: <Widget>[
               ListTile(
-                leading: const Icon(Icons.camera),
-                title: const Text('Camera'),
+                leading: Icon(Icons.camera),
+                title: Text('Camera'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  Uint8List? img = await pickImage(ImageSource.camera);
+                  Uint8List img = await pickImage(ImageSource.camera);
                   if (img != null) {
-                    setState(() => _image = img);
+                    setState(() {
+                      _image = img;
+                    });
                   }
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo),
-                title: const Text('Gallery'),
+                leading: Icon(Icons.photo),
+                title: Text('Gallery'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  Uint8List? img = await pickImage(ImageSource.gallery);
-                  if (img != null) {
-                    setState(() => _image = img);
+                  Uint8List im = await pickImage(ImageSource.gallery);
+                  if (im != null) {
+                    setState(() {
+                      _image = im;
+                    });
                   }
                 },
               ),
@@ -88,62 +108,47 @@ class _UpdateScreenState extends State<UpdateScreen> {
   }
 
   void updateUserInfo() async {
-    if (_currentPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Current password is required")),
-      );
-      return;
-    }
+    // set loading to true
+    setState(() {
+      _isLoading = true;
+    });
 
-    setState(() => _isLoading = true);
+    // Call the AuthMethods updateUser function
+    String result = await AuthMethodes().updateUser(
+      pseudo: pseudoController.text,
+      CodeClient: CodeClientController.text,
+      phoneNumber: telController.text,
+      pharmacy: pharmacieController.text,
+      Datedenaissance: _dateController.text,
+      photoUrl: _image!,
+      Verified: '1',
 
-    try {
-      String result = await AuthMethodes().updateUser(
-        currentPassword: _currentPasswordController.text,
-        pseudo: pseudoController.text,
-        newEmail: _emailController.text,
-        phoneNumber: telController.text,
-        pharmacy: pharmacieController.text,
-        Datedenaissance: dateNaissanceController.text,
-        photoUrl: _image,
-        Verified: '1',
-        newPassword: _passwordController.text,
-        Profession: selectedProfession,
-        CodeClient: codeClientController.text,
-      );
+      newPassword: _passwordController.text,
+      Profession: selectedProfession,
+    );
 
-      if (result == "success") {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => ResponsiveLayout(
-              mobileScreenLayout: const MobileScreenLayout(),
-              webScreenLayout: const WebScreenLayout(),
-            ),
+    // Check the result and show appropriate messages or navigate to another screen
+    if (result == "success") {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ResponsiveLayout(
+            mobileScreenLayout: MobileScreenLayout(),
+            webScreenLayout: WebScreenLayout(),
           ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
+        ),
       );
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
+      // User data updated successfully
+      // You can navigate to another screen or show a success message
+    } else {
 
-  @override
-  void dispose() {
-    pseudoController.dispose();
-    _emailController.dispose();
-    dateNaissanceController.dispose();
-    telController.dispose();
-    _passwordController.dispose();
-    pharmacieController.dispose();
-    codeClientController.dispose();
-    _currentPasswordController.dispose();
-    super.dispose();
+      // Some error occurred
+      // Display an error message to the user
+    }
+
+    // set loading to false after the operation is complete
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
@@ -153,187 +158,483 @@ class _UpdateScreenState extends State<UpdateScreen> {
     double ffem = fem * 0.97;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Update Profile"),
-        centerTitle: true,
-      ),
+
+
       body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 36 * fem, vertical: 37 * fem),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(36 * fem, 37 * fem, 36.83 * fem, 43 * fem),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xffffffff),
+            borderRadius: BorderRadius.circular(20 * fem),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Merci de remplir le formulaire',
-                style: TextStyle(fontSize: 16 * ffem, color: const Color(0xff273085)),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0.17 * fem, 12 * fem),
+                child: Text(
+                  'Merci de remplir le formulaire',
+                  style: TextStyle(
+                    fontSize: 16 * ffem,
+                    color: Color(0xff273085),
+                  ),
+                ),
               ),
-              SizedBox(height: 12 * fem),
-
-              // Profile Picture
               Stack(
                 children: [
                   _image != null
                       ? CircleAvatar(
                     radius: 64,
                     backgroundImage: MemoryImage(_image!),
+                    backgroundColor: Colors.red,
                   )
                       : const CircleAvatar(
                     radius: 64,
                     backgroundImage: NetworkImage(
                         'https://i.stack.imgur.com/l60Hf.png'),
+                    backgroundColor: Colors.red,
                   ),
                   Positioned(
                     bottom: -10,
                     left: 60,
                     child: IconButton(
                       onPressed: selectImage,
-                      icon: const Icon(Icons.add_a_photo, color: Color(0xff273085)),
+                      icon: const Icon(
+                        Icons.add_a_photo,
+                        color: Color(0xff273085),
+                      ),
                     ),
                   ),
                 ],
               ),
-              Text(
-                'Ajouter une photo',
-                style: TextStyle(fontSize: 16 * ffem, color: Colors.grey),
-              ),
-              SizedBox(height: 16 * fem),
-
-              // Current Password Field
-              TextFormField(
-                controller: _currentPasswordController,
-                obscureText: true,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Current Password (required for changes)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
+              Container(
+                margin: EdgeInsets.fromLTRB(0.83 * fem, 0 * fem, 0 * fem, 19 * fem),
+                child: Text(
+                  'Ajouter une photo',
+                  style: TextStyle(
+                    fontSize: 16 * ffem,
+                    color: Colors.grey,
                   ),
                 ),
               ),
-              SizedBox(height: 16 * fem),
+              // Your remaining UI components
+              Center(
 
-              // Other Form Fields
-              TextFormField(
-                controller: pseudoController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Pseudo',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
+                child: Text(
+                  'informations profil',
+                  style: TextStyle(
+                    fontSize: 16 * ffem,
+                    color: Color(0xff273085),
                   ),
                 ),
               ),
-              SizedBox(height: 16 * fem),
+              SizedBox(height: 16),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 9 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0 * fem,
+                      top: 0 * fem,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 307.17 * fem,
+                          height: 54 * fem,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50 * fem),
+                            border: Border.all(color: Color(0xff273085)),
+                          ),
+                          child: TextFormField(
+                            controller: pseudoController,
 
-              TextFormField(
-                controller: _emailController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+
+                              fontSize: 16 * ffem,
+                              color: Color(0xff273085),
+                            ),
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+
+                              border: InputBorder.none,
+                              hintText: 'Pseudo',
+                              hintStyle: TextStyle(
+                                fontSize: 16 * ffem,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the Pseudo';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+
+
+
+
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 13 * fem),
+                width: double.infinity,
+                height: 60,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 290,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50),
+                            border: Border.all(color: Color(0xff273085)),
+                          ),
+                          child: TextFormField(
+                            controller: _dateController,
+                            keyboardType: TextInputType.datetime,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xff273085),
+                            ),
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText: 'Date de Naissance',
+
+                              hintStyle: TextStyle(
+
+                                fontSize: 16,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.calendar_today),
+                                onPressed: () => _selectDate(context),
+                                color: Color(0xff273085),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the Date de Naissance';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 13 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0 * fem,
+                      top: 0 * fem,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 307.17 * fem,
+                          height: 54 * fem,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50 * fem),
+                            border: Border.all(color: Color(0xff273085)),
+                          ),
+                          child: TextFormField(
+                            controller: telController,
+
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+
+                              fontSize: 16 * ffem,
+                              color: Color(0xff273085),
+                            ),
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+
+                              border: InputBorder.none,
+                              hintText: 'Numero du telephone',
+                              hintStyle: TextStyle(
+                                fontSize: 16 * ffem,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the Numero du telephone';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 20 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                child:Stack(
+                  children: [
+                    Positioned(
+                      left: 0 * fem,
+                      top: 0 * fem,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 307.17 * fem,
+                          height: 54 * fem,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50 * fem),
+                            border: Border.all(color: Color(0xff273085)),
+                          ),
+                          child: TextFormField(
+                            controller: _passwordController,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+
+                              fontSize: 16 * ffem,
+                              color: Color(0xff273085),
+                            ),
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+
+                              border: InputBorder.none,
+                              hintText: 'Entrez un nouveau mot de passe',
+                              hintStyle: TextStyle(
+                                fontSize: 16 * ffem,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the Entrez un nouveau mot de passe';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Center(
+
+                child: Text(
+                  'informations pharmacie',
+                  style: TextStyle(
+                    fontSize: 16 * ffem,
+                    color: Color(0xff273085),
                   ),
                 ),
               ),
-              SizedBox(height: 16 * fem),
+              SizedBox(height: 16),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 11 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0 * fem,
+                      top: 0 * fem,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 307.17 * fem,
+                          height: 54 * fem,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50 * fem),
+                            border: Border.all(color: Color(0xff273085)),
+                          ),
+                          child: TextFormField(
+                            controller: pharmacieController,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
 
-              TextFormField(
-                controller: dateNaissanceController,
-                readOnly: true,
-                textAlign: TextAlign.center,
-                onTap: () => _selectDate(context),
-                decoration: InputDecoration(
-                  labelText: 'Date de Naissance',
-                  suffixIcon: const Icon(Icons.calendar_today),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
+                              fontSize: 16 * ffem,
+                              color: Color(0xff273085),
+                            ),
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+
+                              border: InputBorder.none,
+                              hintText: 'Nom de la pharmacie',
+                              hintStyle: TextStyle(
+                                fontSize: 16 * ffem,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the Nom de la pharmacie';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 19 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0 * fem,
+                      top: 0 * fem,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 307.17 * fem,
+                          height: 54 * fem,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50 * fem),
+                            border: Border.all(color: Color(0xff273085)),
+                          ),
+                          child: TextFormField(
+                            controller: CodeClientController,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+
+                              fontSize: 16 * ffem,
+                              color: Color(0xff273085),
+                            ),
+                            textAlignVertical: TextAlignVertical.center,
+                            decoration: InputDecoration(
+
+                              border: InputBorder.none,
+                              hintText: 'Code Client CRM',
+                              hintStyle: TextStyle(
+                                fontSize: 16 * ffem,
+                                color:Colors.grey.withOpacity(0.5),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter the Code';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.fromLTRB(0 * fem, 0 * fem, 0 * fem, 19 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 307.17 * fem,
+                    height: 54 * fem,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(50 * fem),
+                      border: Border.all(color: Color(0xff273085)),
+                    ),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: DropdownButton<String>(
+                        value: selectedProfession,
+                        icon: Icon(Icons.arrow_drop_down, color: Color(0xff273085)),
+                        iconSize: 24 * ffem,
+                        elevation: 16,
+                        style: TextStyle(
+                          fontSize: 16 * ffem,
+                          color: Color(0xff273085),
+                        ),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            selectedProfession = newValue!;
+                          });
+                        },
+                        items: professions.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Center(
+                              child: Text(
+                                value,
+                                textAlign: TextAlign.center, // Center the text
+                                style: TextStyle(
+                                  fontSize: 16 * ffem,
+                                  color: Color(0xff273085),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        underline: Container(), // Remove the underline
+                        isExpanded: true,
+                      ),
+                    ),
                   ),
                 ),
               ),
-              SizedBox(height: 16 * fem),
 
-              TextFormField(
-                controller: telController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Numéro de téléphone',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16 * fem),
 
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Nouveau mot de passe',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16 * fem),
 
-              TextFormField(
-                controller: pharmacieController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Nom de la pharmacie',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
-                  ),
+              Container(
+                margin: EdgeInsets.fromLTRB(79 * fem, 0 * fem, 78.28 * fem, 0 * fem),
+                width: double.infinity,
+                height: 54 * fem,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(50 * fem),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x3f000000),
+                      offset: Offset(0 * fem, 4 * fem),
+                      blurRadius: 2 * fem,
+                    ),
+                  ],
                 ),
-              ),
-              SizedBox(height: 16 * fem),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    updateUserInfo();
 
-              TextFormField(
-                controller: codeClientController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  labelText: 'Code Client CRM',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xff273085),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50 * fem),
+                    ),
+                    elevation: 2 * fem,
                   ),
-                ),
-              ),
-              SizedBox(height: 16 * fem),
-
-              DropdownButtonFormField<String>(
-                value: selectedProfession,
-                items: professions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() => selectedProfession = newValue!);
-                },
-                decoration: InputDecoration(
-                  labelText: 'Profession',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
+                  child: Text(
+                    'Enregistrer',
+                    style: TextStyle(
+                      fontSize: 16 * ffem,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ),
-              SizedBox(height: 16 * fem),
-
-              ElevatedButton(
-                onPressed: _isLoading ? null : updateUserInfo,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff273085),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50 * fem),
-                  ),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                  'Enregistrer',
-                  style: TextStyle(fontSize: 16 * ffem, color: Colors.white),
                 ),
               ),
             ],

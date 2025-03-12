@@ -5,6 +5,7 @@ import 'package:mysaiph/Screens/SignInScreen.dart';
 import 'package:mysaiph/Screens/links_list_screen.dart';
 import 'package:mysaiph/Screens/profile_screen.dart';
 import 'package:mysaiph/Screens/search_screen.dart';
+import 'package:mysaiph/Screens/test.dart';
 import 'package:mysaiph/resources/auth-methode.dart';
 import 'package:mysaiph/resources/firestore_methods.dart';
 import 'package:mysaiph/widgets/profile_container.dart';
@@ -12,7 +13,7 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key});
+  const SettingsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,7 @@ class SettingsScreen extends StatelessWidget {
                 body: Column(
                   children: [
                     Transform.translate(
-                      offset: Offset(0, 10), // Move the widget 20 pixels down
+                      offset: Offset(0, 10),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: IconButton(
@@ -42,11 +43,9 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-
                     SizedBox(
                       height: 20,
                     ),
-
                     GestureDetector(
                       onTap: () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (context) => ProfileScreen(uid: FirebaseAuth.instance.currentUser!.uid),
@@ -55,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             backgroundImage: NetworkImage(userProvider.getUser.photoUrl),
-                            radius: 80, // Adjust the radius to your desired size
+                            radius: 80,
                           ),
                           Positioned(
                             bottom: 0,
@@ -111,31 +110,8 @@ class SettingsScreen extends StatelessWidget {
                       Container(
                         width: 17,
                         height: 17,
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: FutureBuilder<int>(
-                            future: FireStoreMethodes().getNotificationCount(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return CircularProgressIndicator();
-                              } else if (snapshot.hasError) {
-                                return Text("Error");
-                              } else {
-                                return Text(
-                                  snapshot.data.toString(),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ),
+
+
                       ),
                           () {
                         Navigator.of(context).push(MaterialPageRoute(
@@ -143,9 +119,18 @@ class SettingsScreen extends StatelessWidget {
                         ));
                       },
                     ),
-                    SizedBox(
-                      height: 10,
+                    SizedBox(height: 10),
+                    ProfileButton(
+                      screenWidth,
+                      "Update Email",
+                      const SizedBox(),
+                          () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (context) => UpdateEmailScreen(),
+                        ));
+                      },
                     ),
+                    SizedBox(height: 10),
                     ProfileButton(
                       screenWidth,
                       "Amis",
@@ -156,9 +141,7 @@ class SettingsScreen extends StatelessWidget {
                         ));
                       },
                     ),
-                    SizedBox(
-                      height: 10,
-                    ),
+                    SizedBox(height: 10),
                     ProfileButton(
                       screenWidth,
                       "Liens",
@@ -170,36 +153,30 @@ class SettingsScreen extends StatelessWidget {
                       },
                     ),
 
-                    SizedBox(
-                      height: 10,
-                    ),
+                    SizedBox(height: 10),
                     ProfileButton(
                       screenWidth,
                       "Desactivate account",
                       const SizedBox(),
                           () async {
                         await AuthMethodes().deactivateAccount();
-                        // Navigate back to the previous screen or any desired screen
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => SignInScreen()), // Replace SignInScreen with your actual sign-in screen
+                          MaterialPageRoute(builder: (context) => SignInScreen()),
                         );
                       },
                     ),
 
-                    SizedBox(
-                      height: 10,
-                    ),
+                    SizedBox(height: 10),
                     ProfileButton(
                       screenWidth,
                       "Déconnexion",
                       const SizedBox(),
                           () async {
                         await AuthMethodes().signOut();
-                        // Navigate back to the previous screen or any desired screen
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => SignInScreen()), // Replace SignInScreen with your actual sign-in screen
+                          MaterialPageRoute(builder: (context) => SignInScreen()),
                         );
                       },
                     ),
@@ -215,7 +192,11 @@ class SettingsScreen extends StatelessWidget {
 }
 
 Widget ProfileButton(
-    double width, String text, Widget ending, VoidCallback function) {
+    double width,
+    String text,
+    Widget ending,
+    VoidCallback function,
+    ) {
   return SizedBox(
     width: width,
     child: ElevatedButton(
@@ -245,7 +226,7 @@ Widget ProfileButton(
               ),
             ),
           ),
-          ending
+          ending,
         ],
       ),
     ),

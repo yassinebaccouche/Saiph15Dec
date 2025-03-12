@@ -1,9 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mysaiph/Models/Notif.dart';
 import 'package:mysaiph/Screens/display_notif.dart';
 import 'package:mysaiph/resources/firestore_methods.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/user_provider.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -13,137 +13,140 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   List<NotificationModel> notifications = [];
-  late String currentUserId; // Declare this as a late variable
-  bool isLoading = true; // Track loading state
+  late String currentUserId;
+  bool isLoading = true;
   final FireStoreMethodes _fireStoreMethodes = FireStoreMethodes();
 
   @override
   void initState() {
     super.initState();
-    // Fetch notifications when the widget is initialized
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    currentUserId = userProvider.getUser.uid;
     fetchNotifications();
-
-    // Using post-frame callback to get the user ID after the first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      setState(() {
-        currentUserId = userProvider.getUser.uid;
-      });
-    });
   }
 
-  // Function to fetch notifications from Firestore
   Future<void> fetchNotifications() async {
     try {
-      List<NotificationModel> fetchedNotifications =
-      await _fireStoreMethodes.fetchAllNotifications();
+      // Fetch user's responses
+      final responseSnapshot = await FirebaseFirestore.instance
+          .collection('notifResponse')
+          .where('uid', isEqualTo: currentUserId)
+          .get();
+
+      // Get responded notification IDs
+      final respondedIds = responseSnapshot.docs
+          .map((doc) => doc['notifId'] as String)
+          .toSet();
+
+      // Fetch all notifications
+      final notifSnapshot =
+      await FirebaseFirestore.instance.collection('notifications').get();
+
+      // Convert and filter notifications
+      final allNotifications = notifSnapshot.docs
+          .map((doc) => NotificationModel.fromSnap(doc))
+          .toList();
+
+      final filteredNotifications = allNotifications
+          .where((notif) => !respondedIds.contains(notif.NotifId)) // lowercase
+          .toList();
 
       setState(() {
-        notifications = fetchedNotifications;
-        isLoading = false; // Set loading to false when data is fetched
+        notifications = filteredNotifications;
+        isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        isLoading = false; // Set loading to false even on error
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching notifications: $e')),
-      );
+      print('Error fetching notifications: $e');
+      setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFECEFF1),
+      backgroundColor: const Color(0xFFECEFF1),
       appBar: AppBar(
-        title: Text('Notifications'),
-        backgroundColor: Color(0xFF00B2FF),
+        title: const Text('Notifications'),
+        backgroundColor: const Color(0xFF00B2FF),
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : buildNotificationList(),
-    );
-  }
+      body: RefreshIndicator(
+        onRefresh: fetchNotifications, // Refresh method
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : notifications.isEmpty
+            ? const Center(child: Text('Aucune notification disponible'))
+            : ListView.builder(
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            final notification = notifications[index];
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: GestureDetector(
+                onTap: () async {
+                  final hasResponded = await _fireStoreMethodes.hasUserRespondedNotif(
+                    currentUserId,
+                    notification.NotifId, // lowercase
+                  );
 
-  // Widget to build the notification list view
-  Widget buildNotificationList() {
-    return ListView.builder(
-      itemCount: notifications.length,
-      itemBuilder: (context, index) {
-        NotificationModel notification = notifications[index];
-
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          child: GestureDetector(
-            onTap: () async {
-              bool hasResponded = await _fireStoreMethodes.hasUserRespondedNotif(
-                currentUserId,
-                notification.NotifId, // Make sure 'NotifId' is the correct field name
-              );
-
-              if (hasResponded) {
-                // If the user has responded, show a snack bar message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Vous avez déjà répondu à cette notification"),
+                  if (hasResponded) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Vous avez déjà répondu à cette notification"),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DisplayNotificationPage(
+                          notification: notification,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                );
-              } else {
-                // If the user hasn't responded, navigate to the details page
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DisplayNotificationPage(
-                      notification: notification,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    title: Text(
+                      notification.question,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                );
-              }
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                title: Text(
-                  notification.question,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black87,
-                  ),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Appuyez pour afficher les détails',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        "voir details", // lowercase
+                        style: const TextStyle(fontSize: 16),
+                      ),
                     ),
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFF00B2FF),
+                      child: Icon(Icons.notifications, color: Colors.white),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF00B2FF)),
                   ),
                 ),
-                leading: CircleAvatar(
-                  backgroundColor: Color(0xFF00B2FF),
-                  child: Icon(Icons.notifications, color: Colors.white),
-                ),
-                trailing: Icon(Icons.arrow_forward_ios, color: Color(0xFF00B2FF)),
               ),
-            ),
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }

@@ -14,7 +14,6 @@ import '../widgets/profile_container.dart';
 class UserFormulaireTwo extends StatefulWidget {
   final String pseudo;
   final String date;
-  final String email;
   final String tel;
   final String mdp;
   final Uint8List? file;
@@ -23,7 +22,6 @@ class UserFormulaireTwo extends StatefulWidget {
     Key? key,
     required this.pseudo,
     required this.date,
-    required this.email,
     required this.tel,
     required this.mdp,
     this.file,
@@ -40,30 +38,12 @@ class _UserFormulaireTwoState extends State<UserFormulaireTwo> {
     'Profession',
     'Pharmacist',
     'Doctor',
-    'Profession 3',
-    // Add more professions as needed
+    'Other',  // Add more professions as needed
   ];
-  List<String> pharmacies = [
-    'Pharmacy',
-    'MOHAMED BEN AMOR',
-    'MOUIN NASR ZAAFRANE',
-    'RIM DOGUI BOUKHRIS',
-    'SOULAIMA TURKI SOUISSI',
-    'OLFA CHENNAOUI',
-    // Add more pharmacies as needed
-  ];
-  Map<String, String> pharmacyToCRMMap = {
-    'Pharmacy':'CRM',
-    'MOHAMED BEN AMOR': 'XLKKNS',
-    'MOUIN NASR ZAAFRANE': 'cbozczn',
-    'RIM DOGUI BOUKHRIS': 'jvbjozbv',
-    'SOULAIMA TURKI SOUISSI':'vobsso'
-    // Add more mappings as needed
-  };
 
   String selectedProfession = 'Profession';
-  String selectedPharmacy = 'Pharmacy';
-  String selectedCRM = 'CRM';
+  TextEditingController pharmacyController = TextEditingController();
+  TextEditingController crmController = TextEditingController();
 
   void updateUserInfo() async {
     setState(() {
@@ -72,16 +52,14 @@ class _UserFormulaireTwoState extends State<UserFormulaireTwo> {
 
     String result = await AuthMethodes().updateUser(
       pseudo: widget.pseudo,
-      newEmail: widget.email,
-      CodeClient: selectedCRM,
+      CodeClient: crmController.text.isEmpty ? 'CRM' : crmController.text,
       phoneNumber: widget.tel,
-      pharmacy: selectedPharmacy,
+      pharmacy: pharmacyController.text.isEmpty ? 'Pharmacy' : pharmacyController.text,
       Datedenaissance: widget.date,
       photoUrl: widget.file ?? Uint8List(0),
       Verified: '1',
-
       newPassword: widget.mdp,
-      Profession: selectedProfession, currentPassword: '',
+      Profession: selectedProfession,
     );
 
     if (result == "success") {
@@ -194,56 +172,12 @@ class _UserFormulaireTwoState extends State<UserFormulaireTwo> {
                                 width: 1,
                               ),
                             ),
-                            child: DropdownButtonHideUnderline(
-                              child: Center(
-                                child: DropdownButton<String>(
-                                  dropdownColor: Colors.white,
-                                  borderRadius: BorderRadius.circular(30),
-                                  icon: Padding(
-                                    padding: const EdgeInsets.only(
-                                      right: 10,
-                                    ),
-                                    child: Transform.rotate(
-                                      angle: 90 * pi / 180,
-                                      child: Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        color: Color(0xff273085),
-                                      ),
-                                    ),
-                                  ),
-                                  items: pharmacies
-                                      .map(
-                                        (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 5,
-                                        ).copyWith(left: 10),
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              "$e ",
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color:
-                                                const Color(0xff273085),
-                                                fontWeight: FontWeight.w400,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                      .toList(),
-                                  onChanged: (selection) {
-                                    setState(() {
-                                      selectedPharmacy = selection!;
-                                      selectedCRM = pharmacyToCRMMap[selectedPharmacy] ?? 'CRM';
-                                    });
-                                  },
-                                  value: selectedPharmacy,
-                                ),
+                            child: TextField(
+                              controller: pharmacyController,
+                              decoration: InputDecoration(
+                                hintText: 'Enter Pharmacy',
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                               ),
                             ),
                           ),
@@ -260,55 +194,15 @@ class _UserFormulaireTwoState extends State<UserFormulaireTwo> {
                                 width: 1,
                               ),
                             ),
-                            child: DropdownButtonHideUnderline(
-                              child: Center(
-                                child: DropdownButton<String>(
-                                  dropdownColor: Colors.white,
-                                  borderRadius: BorderRadius.circular(30),
-                                  icon: Padding(
-                                    padding: const EdgeInsets.only(
-                                      right: 10,
-                                    ),
-                                    child: Transform.rotate(
-                                      angle: 90 * pi / 180,
-                                      child: Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        color: Color(0xff273085),
-                                      ),
-                                    ),
-                                  ),
-                                  items: pharmacyToCRMMap.values.toSet().map((e) => DropdownMenuItem(
-                                    value: e,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                      ).copyWith(left: 10),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            "$e ",
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              color: const Color(0xff273085),
-                                              fontWeight: FontWeight.w400,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )).toList(),
-                                  onChanged: (selection) {
-                                    setState(() {
-                                      selectedCRM = selection!;
-                                    });
-                                  },
-                                  value: selectedCRM,
-                                ),
+                            child: TextField(
+                              controller: crmController,
+                              decoration: InputDecoration(
+                                hintText: 'Enter CRM',
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                               ),
                             ),
                           ),
-
-
                           const SizedBox(
                             height: 10,
                           ),

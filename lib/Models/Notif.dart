@@ -21,7 +21,7 @@ class NotificationModel {
   // Convert Firestore document into a NotificationModel instance
   factory NotificationModel.fromJson(Map<String, dynamic> data) {
     return NotificationModel(
-      NotifId: data['NotifId'] ?? Uuid().v4(),
+      NotifId: data['notificationId'] ?? Uuid().v4(),
       question: data['question'] ?? "",
       possibleAnswers: List<String>.from(data['possibleAnswers'] ?? []),
       correctAnswer: data['correctAnswer'],
@@ -39,7 +39,7 @@ class NotificationModel {
   // Convert the model to a JSON object for Firestore
   Map<String, dynamic> toJson() {
     return {
-      "NotifId": NotifId,
+      "notificationId": NotifId,
       "question": question,
       "possibleAnswers": possibleAnswers,
       "correctAnswer": correctAnswer,

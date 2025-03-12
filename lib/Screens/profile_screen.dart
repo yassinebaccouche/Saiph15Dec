@@ -197,7 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   SizedBox(),
                                   () => Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (context) => UpdateEmailScreen(),
+                                          builder: (context) => UpdateScreen(),
                                         ),
                                       ))
                               : isFollowing

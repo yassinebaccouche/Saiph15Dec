@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/services.dart';
 import 'package:mysaiph/resources/storage_methods.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,7 +17,7 @@ class AuthMethodes {
     User currentUser = _auth.currentUser!;
 
     DocumentSnapshot documentSnapshot =
-        await _firestore.collection('users').doc(currentUser.uid).get();
+    await _firestore.collection('users').doc(currentUser.uid).get();
 
     return model.User.fromSnap(documentSnapshot);
   }
@@ -85,76 +86,102 @@ class AuthMethodes {
     return res;
   }
   Future<String> updateUser({
-    required String currentPassword,
     required String pseudo,
-    required String newEmail,
+    required String Profession,
     required String phoneNumber,
     required String pharmacy,
     required String Datedenaissance,
-    Uint8List? photoUrl,
-    required String newPassword,
-    required String Profession,
-    required String CodeClient,
+    required Uint8List photoUrl,
     required String Verified,
+    required String CodeClient,
+    // New email parameter
+    String? newPassword, // New password parameter
   }) async {
     try {
-      User? user = _auth.currentUser;
+      User? currentUser = _auth.currentUser;
 
-      // Reauthenticate user
-      AuthCredential credential = EmailAuthProvider.credential(
-          email: user!.email!,
-          password: currentPassword
-      );
+      if (currentUser != null) {
+        // Step 1: Upload the photo to Firebase Storage if it's provided
+        String? photoUrlString;
+        if (photoUrl.isNotEmpty) {
+          photoUrlString = await _uploadPhoto(photoUrl, currentUser.uid);
+        }
 
-      await user.reauthenticateWithCredential(credential);
+        // Step 2: Handle email update
 
-      // Update email without verification check
-      await user.updateEmail(newEmail);
 
-      // Update password if needed
-      if (newPassword.isNotEmpty) {
-        await user.updatePassword(newPassword);
+        // Step 3: Handle password update if provided
+        if (newPassword != null && newPassword.isNotEmpty) {
+          try {
+            await currentUser.updatePassword(newPassword);
+          } catch (e) {
+            print("Error updating password: $e");
+            return "Failed to update password";
+          }
+        }
+
+        // Step 4: Create a map with updated user data, including the photo URL
+        Map<String, dynamic> updatedUserData = {
+          'pseudo': pseudo,
+          'Profession': Profession,
+          'phoneNumber': phoneNumber,
+          'pharmacy': pharmacy,
+          'Datedenaissance': Datedenaissance,
+          'Verified': Verified,
+          'CodeClient': CodeClient,
+          'photoUrl': photoUrlString ?? currentUser.photoURL, // Use the old photo URL if not updated
+          // Update email in Firestore
+        };
+
+        // Step 5: Update Firestore with new user data
+        try {
+          await _firestore.collection('users').doc(currentUser.uid).update(updatedUserData);
+        } catch (e) {
+          print("Error updating Firestore: $e");
+          return "Failed to update Firestore";
+        }
+
+        return "success";
+      } else {
+        return "User not logged in";
       }
-
-      // Update Firestore data
-      Map<String, dynamic> updateData = {
-        'email': newEmail,
-        'pseudo': pseudo,
-        'phoneNumber': phoneNumber,
-        'pharmacy': pharmacy,
-        'Datedenaissance': Datedenaissance,
-        'Profession': Profession,
-        'CodeClient': CodeClient,
-      };
-
-      if (photoUrl != null) {
-        String photoURL = await StorageMethods()
-            .uploadImageToStorage('profilePics', photoUrl, false);
-        updateData['photoUrl'] = photoURL;
-      }
-
-      await _firestore.collection('users').doc(user.uid).update(updateData);
-
-      return "success";
     } catch (err) {
-      return err.toString();
+      print("Error during user update: $err");
+      return "Some error occurred";
     }
   }
 
-  Future<String> _uploadPhoto(Uint8List photo, String userId) async {
+
+// Helper function to upload the photo to Firebase Storage
+  Future<String> _uploadPhoto(Uint8List photo, String? userId) async {
     try {
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('users/$userId/profile_${DateTime.now().millisecondsSinceEpoch}.png');
+      // If userId is null, use the default image from assets
+      if (userId == null) {
+        // Load the default image from assets
+        ByteData data = await rootBundle.load('assets/images/profilepic.png');
+        photo = data.buffer.asUint8List();
+        userId = 'defaultUserId'; // Set a default userId for the profile picture
+      }
+
+      // Define the file path where the image will be stored in Firebase Storage
+      String filePath = "users/$userId/profile_photo.png";
+
+      // Reference to Firebase Storage
+      Reference storageRef = FirebaseStorage.instance.ref().child(filePath);
+
+      // Upload the image
       UploadTask uploadTask = storageRef.putData(photo);
+
+      // Wait for the upload to complete
       TaskSnapshot snapshot = await uploadTask;
+
+      // Return the download URL for the uploaded image
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      print("Photo upload error: $e");
+      print("Error uploading photo: $e");
       throw Exception("Failed to upload photo");
     }
   }
-
 
 
 
